@@ -1,4 +1,4 @@
-import { SecurityUtils } from '../utils/index'
+import { SecurityUtils } from '../utils/index.js'
 
 export class CryptoService {
 

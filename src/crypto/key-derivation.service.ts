@@ -1,4 +1,4 @@
-import { SecurityUtils } from '../utils';
+import { SecurityUtils } from "../utils/security.utils.js";
 
 export class KeyDerivationService{
   readonly ITERATIONS = 600_000;
