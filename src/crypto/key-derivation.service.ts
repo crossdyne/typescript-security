@@ -5,7 +5,7 @@ export class KeyDerivationService{
   readonly ITERATIONS = 600_000;
   readonly KEY_SIZE = 32;
 
-  async deriveKeysFromPassword(login: string, password: string, salt: Uint8Array, options?: KdfOptions): Promise<{ kek: Uint8Array; authHash: string }> {
+  async deriveKeysFromPassword(identity: string, password: string, salt: Uint8Array, options?: KdfOptions): Promise<{ kek: Uint8Array; authHash: string }> {
 
     const opts = options ?? KdfOptions.default;
     opts.validate();
@@ -13,7 +13,7 @@ export class KeyDerivationService{
     const safeSalt = new Uint8Array(salt);
     const encoder = new TextEncoder();
 
-    const normalizedLogin = login.trim().toLocaleLowerCase();
+    const normalizedLogin = identity.trim().toLocaleLowerCase();
     const combinedPassword = `${normalizedLogin}:${password}`;
     const passwordBytes = encoder.encode(combinedPassword);
     const baseKey = await crypto.subtle.importKey('raw', passwordBytes, 'PBKDF2', false, ['deriveBits', 'deriveKey']);
