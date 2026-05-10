@@ -1,5 +1,6 @@
-import { KeyDerivationService } from '../crypto/index.js';
-import { SecurityUtils } from '../utils/index.js';
+import { KeyDerivationService } from '../crypto/key-derivation.service.js';
+import { SecurityUtils } from '../utils/security.utils.js';
+
 
 export class SrpService {
   private readonly keyDerivation = new KeyDerivationService();

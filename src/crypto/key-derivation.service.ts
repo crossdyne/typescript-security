@@ -1,13 +1,18 @@
 import { SecurityUtils } from "../utils/security.utils.js";
+import { KdfOptions, SecurityConstants } from "./crypto-options.js";
 
 export class KeyDerivationService{
   readonly ITERATIONS = 600_000;
   readonly KEY_SIZE = 32;
 
-  async deriveKeysFromPassword(login: string, password: string, salt: Uint8Array): Promise<{ kek: Uint8Array; authHash: string }> {
+  async deriveKeysFromPassword(login: string, password: string, salt: Uint8Array, options?: KdfOptions): Promise<{ kek: Uint8Array; authHash: string }> {
+
+    const opts = options ?? KdfOptions.default;
+    opts.validate();
+
     const safeSalt = new Uint8Array(salt);
-    
     const encoder = new TextEncoder();
+
     const normalizedLogin = login.trim().toLocaleLowerCase();
     const combinedPassword = `${normalizedLogin}:${password}`;
     const passwordBytes = encoder.encode(combinedPassword);
@@ -16,22 +21,22 @@ export class KeyDerivationService{
     const masterKeyBits = await crypto.subtle.deriveBits({
         name: 'PBKDF2',
         salt: safeSalt, 
-        iterations: this.ITERATIONS,
+        iterations: opts.pbkdf2Iterations,
         hash: 'SHA-256'
-    }, baseKey, this.KEY_SIZE * 8);
+    }, baseKey, SecurityConstants.KeySizeBytes * 8);
 
     const masterKey = await crypto.subtle.importKey('raw', masterKeyBits, 'HKDF', false, ['deriveBits']);
 
     const kek = await crypto.subtle.deriveBits(
       { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: encoder.encode('AES-GCM-KEK-v1') },
       masterKey,
-      this.KEY_SIZE * 8
+      SecurityConstants.KeySizeBytes * 8
     );
 
     const authBytes = await crypto.subtle.deriveBits(
       { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: encoder.encode('SERVER-AUTH-HASH-v1') },
       masterKey,
-      this.KEY_SIZE * 8
+      SecurityConstants.KeySizeBytes * 8
     );
 
     return {

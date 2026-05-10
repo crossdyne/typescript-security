@@ -1,3 +1,10 @@
-export { CryptoService, KeyDerivationService } from './crypto/index.js'
-export { SecurityUtils } from './utils/index.js'
-export { SrpService } from './srp/index.js'
+// Crypto
+export { CryptoService } from './crypto/crypto.service.js'
+export { KeyDerivationService } from './crypto/key-derivation.service.js'
+export {AesGcmOptions, KdfOptions, SecurityConstants } from './crypto/crypto-options.js'
+
+// Srp
+export { SrpService } from './srp/srp.service.js'
+
+// Utils
+export { SecurityUtils } from './utils/security.utils.js'
