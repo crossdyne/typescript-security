@@ -2,8 +2,6 @@ import { SecurityUtils } from "../utils/security.utils.js";
 import { KdfOptions, SecurityConstants } from "./crypto-options.js";
 
 export class KeyDerivationService{
-  readonly ITERATIONS = 600_000;
-  readonly KEY_SIZE = 32;
 
   async deriveKeysFromPassword(identity: string, password: string, salt: Uint8Array, options?: KdfOptions): Promise<{ kek: Uint8Array; authHash: string }> {
 
