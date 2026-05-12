@@ -22,19 +22,19 @@ export class KeyDerivationService{
         name: 'PBKDF2',
         salt: safeSalt, 
         iterations: opts.pbkdf2Iterations,
-        hash: 'SHA-256'
+        hash: opts.hashAlgorithm
     }, baseKey, SecurityConstants.KeySizeBytes * 8);
 
     const masterKey = await crypto.subtle.importKey('raw', masterKeyBits, 'HKDF', false, ['deriveBits']);
 
     const kek = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: encoder.encode('AES-GCM-KEK-v1') },
+      { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('AES-GCM-KEK-v1') },
       masterKey,
       SecurityConstants.KeySizeBytes * 8
     );
 
     const authBytes = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: encoder.encode('SERVER-AUTH-HASH-v1') },
+      { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('SERVER-AUTH-HASH-v1') },
       masterKey,
       SecurityConstants.KeySizeBytes * 8
     );
