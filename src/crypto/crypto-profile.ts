@@ -1,8 +1,6 @@
-import { AesGcmOptions, KdfOptions } from "./crypto-options.js";
-
-export enum CryptoVersion {
-    V1 = 1,
-}
+import { AesGcmOptions } from "./aes-gcm-options.js";
+import { CryptoVersion } from "./crypto-version.js";
+import { KdfOptions } from "./kdf-options.js";
 
 export class CryptoProfile {
     readonly version: CryptoVersion;

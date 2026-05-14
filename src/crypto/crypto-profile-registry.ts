@@ -1,5 +1,7 @@
-import { AesGcmOptions, KdfOptions } from "./crypto-options.js";
-import { CryptoProfile, CryptoVersion } from "./crypto-profile.js";
+import { AesGcmOptions } from "./aes-gcm-options.js";
+import { CryptoProfile } from "./crypto-profile.js";
+import { CryptoVersion } from "./crypto-version.js";
+import { KdfOptions } from "./kdf-options.js";
 
 export class CryptoProfileRegistry {
     static getProfile(version: CryptoVersion): CryptoProfile {
