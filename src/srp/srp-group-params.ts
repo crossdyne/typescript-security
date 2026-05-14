@@ -1,26 +1,4 @@
-import { SecurityUtils } from "../utils/security.utils.js";
-
-export enum SrpGroup {
-    Rfc5054_1024 = 'Rfc5054_1024',
-    Rfc5054_1536 = 'Rfc5054_1536',
-    Rfc5054_2048 = 'Rfc5054_2048',
-    Rfc5054_3072 = 'Rfc5054_3072',
-    Rfc5054_4096 = 'Rfc5054_4096',
-    Rfc5054_6144 = 'Rfc5054_6144',
-    Rfc5054_8192 = 'Rfc5054_8192',
-    Custom = 'Custom'
-}
-
-export type HashAlgorithmName = 'SHA-256' | 'SHA-384' | 'SHA-512';
-
-export interface SrpContext {
-    readonly N: bigint;
-    readonly g: bigint;
-    readonly k: bigint;
-    readonly modulusSize: number;
-    readonly hashAlgorithmName: HashAlgorithmName;
-    readonly hashSize: number;
-}
+import { SrpGroup } from "./srp-group.js";
 
 export class SrpGroupParams {
     static getN(group: SrpGroup): bigint {
@@ -160,7 +138,7 @@ export class SrpGroupParams {
                     "FC026E47" + "9558E447" + "5677E9AA" + "9E3050E2" + "765694DF" + "C81F56E8" + "80B96E71" +
                     "60C980DD" + "98EDD3DF" + "FFFFFFFF" + "FFFFFFFF");
             default:
-                throw new Error("Неподдерживаемая группа");
+                throw new Error("Unsupported group");
         }
     }
 
@@ -181,47 +159,7 @@ export class SrpGroupParams {
             case SrpGroup.Rfc5054_8192:
                 return BigInt(19);
             default:
-                throw new Error("Неподдерживаемая группа");
+                throw new Error("Unsupported group");
         }
-    }
-}
-
-export class SrpContextFactory {
-    static async create(group: SrpGroup = SrpGroup.Rfc5054_3072): Promise<SrpContext> {
-        const N = SrpGroupParams.getN(group);
-        const g = SrpGroupParams.getG(group);
-        
-        const hexLength = N.toString(16).length;
-        const modulusSize = Math.ceil(hexLength / 2);
-
-        let hashAlgorithmName: HashAlgorithmName = 'SHA-256';
-        let hashSize = 32;
-
-        if (group === SrpGroup.Rfc5054_4096) {
-            hashAlgorithmName = 'SHA-384';
-            hashSize = 48;
-        }
-
-        const k = await this.computeK(N, Number(g), hashAlgorithmName);
-
-        return { N, g, k, modulusSize, hashAlgorithmName, hashSize };
-    }
-
-    private static async computeK(N: bigint, g: number, hashAlgo: HashAlgorithmName): Promise<bigint> {
-
-        let hex = N.toString(16);
-        if (hex.length % 2 !== 0) hex = '0' + hex;
-        const nBytes = SecurityUtils.fromHex(hex);
-
-        const gBytes = new Uint8Array(4);
-        const view = new DataView(gBytes.buffer);
-        view.setInt32(0, g, true); // true = little endian
-
-        const combined = new Uint8Array(nBytes.length + gBytes.length);
-        combined.set(nBytes, 0);
-        combined.set(gBytes, nBytes.length);
-
-        const hashBuffer = await crypto.subtle.digest(hashAlgo, combined);
-        return SecurityUtils.bytesToBigInt(new Uint8Array(hashBuffer));
     }
 }
