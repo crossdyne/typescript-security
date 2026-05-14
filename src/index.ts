@@ -9,6 +9,8 @@ export { CryptoProfileRegistry } from './crypto/crypto-profile-registry.js'
 
 // Srp
 export { SrpService } from './srp/srp.service.js'
+export { SrpGroup, SrpContext, SrpGroupParams, SrpContextFactory } from './srp/srp-configuration.js'
+export type { HashAlgorithmName } from './srp/srp-configuration.js'
 
 // Utils
-export { SecurityUtils } from './utils/security.utils.js'
+export { SecurityUtils, SrpEncoding } from './utils/security.utils.js'
