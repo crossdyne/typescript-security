@@ -3,6 +3,10 @@ import { CryptoProfile } from "./crypto-profile.js";
 import { CryptoVersion } from "./crypto-version.js";
 import { KdfOptions } from "./kdf-options.js";
 
+/**
+ * Registry of predefined {@link CryptoProfile} instances by version.
+ * Returns a fresh profile per call.
+ */
 export class CryptoProfileRegistry {
     static getProfile(version: CryptoVersion): CryptoProfile {
         switch (version) {
@@ -17,6 +21,7 @@ export class CryptoProfileRegistry {
         }
     }
 
+     /** Latest supported profile (currently V1). */
     static get latest(): CryptoProfile {
         return this.getProfile(CryptoVersion.V1);
     }

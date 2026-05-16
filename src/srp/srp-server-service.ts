@@ -2,15 +2,35 @@ import { SecurityUtils } from "../utils/security.utils.js";
 import { SrpEncoding } from "../utils/srp-encoding.js";
 import { SrpContext } from "./srp-context.js";
 
+/**
+ * Server-side SRP session state containing ephemeral keys and verifier.
+ */
 export interface SrpSessionState {
+  /** User login identifier. */
   login: string;
+
+  /** Server private ephemeral key (Base64). */
   privateKeyB: string;
+
+  /** Password verifier (Base64). */
   verifier: string;
+
+  /** Server public ephemeral key B (Base64). */
   publicKeyB: string;
 }
 
+/**
+ * Server-side SRP-6a: challenge generation, client proof verification, server proof creation.
+ */
 export class SrpServerService {
 
+  /**
+   * Generates server challenge B and session state from verifier.
+   * @param login - User login.
+   * @param verifierBytes - Stored verifier v as byte array.
+   * @param ctx - SRP context (hash, N, g, etc.).
+   * @returns Session state with private b, verifier, and public B.
+   */
   async getSrpChallenge(login: string, verifierBytes: Uint8Array, ctx: SrpContext): Promise<SrpSessionState> {
     const v = SecurityUtils.bytesToBigInt(verifierBytes);
 
@@ -28,6 +48,15 @@ export class SrpServerService {
     };
   }
 
+  /**
+   * Verifies client M1 proof and returns server M2 proof.
+   * @param sessionState - Server session state.
+   * @param a - Client public A (Base64).
+   * @param m1 - Client proof M1 (Base64).
+   * @param ctx - SRP context.
+   * @returns Server proof M2 as Base64 string.
+   * @throws If verification fails or input is invalid.
+   */
   async verifySrpProof(sessionState: SrpSessionState, a: string, m1: string, ctx: SrpContext): Promise<string> {
     const A = SecurityUtils.bytesToBigInt(SecurityUtils.fromBase64(a));
     const M1_client = SecurityUtils.bytesToBigInt(SecurityUtils.fromBase64(m1));
