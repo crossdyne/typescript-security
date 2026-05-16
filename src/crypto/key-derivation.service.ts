@@ -3,9 +3,19 @@ import { SecurityUtils } from "../utils/security.utils.js";
 import { HashAlgorithm } from "./hash-algorithm.js";
 import { KdfOptions } from "./kdf-options.js";
 
-
+/**
+ * Two-stage key derivation: PBKDF2 (master key) → HKDF (sub-keys).
+ */
 export class KeyDerivationService {
 
+   /**
+   * Derives KEK and Base64 AuthHash. Identity is normalized (trimmed, lowercase).
+   * @param identity - User identity (email, username).
+   * @param password - User password.
+   * @param salt - Random salt.
+   * @param options - KDF configuration; uses default if omitted.
+   * @returns Object with `kek` (Uint8Array) and `authHash` (Base64 string).
+   */
   async deriveKeysFromPassword(identity: string, password: string, salt: Uint8Array, options?: KdfOptions): Promise<{ kek: Uint8Array; authHash: string }> {
     const opts = options ?? KdfOptions.default;
     opts.validate();
@@ -45,6 +55,15 @@ export class KeyDerivationService {
     };
   }
 
+   /**
+   * Derives an SRP-compatible authentication hash (output size = hash output length).
+   * @param identity - User identity.
+   * @param password - User password.
+   * @param salt - Random salt.
+   * @param srpHashAlgorithm - SRP hash algorithm (SHA-256/384/512).
+   * @param options - KDF configuration; uses default if omitted.
+   * @returns Raw hash bytes for use as SRP verifier input (x).
+   */
   async deriveAuthHashForSrp(identity: string, password: string, salt: Uint8Array, srpHashAlgorithm: HashAlgorithm, options?: KdfOptions): Promise<Uint8Array> {
     const opts = options ?? KdfOptions.default;
     opts.validate();
