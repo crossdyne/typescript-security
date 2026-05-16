@@ -1,4 +1,9 @@
+/**
+ * Cryptographic utility functions: Base64, BigInteger conversion, constant-time comparison, modular exponentiation.
+ */
 export class SecurityUtils {
+
+  /** Encodes Uint8Array to standard Base64. */
   static toBase64(bytes: Uint8Array): string {
     let binary = '';
 
@@ -8,6 +13,7 @@ export class SecurityUtils {
     return btoa(binary);
   }
 
+  /** Decodes URL-safe or standard Base64 to Uint8Array. */
   static fromBase64(base64: string): Uint8Array {
     let cleaned = base64.replace(/-/g, '+').replace(/_/g, '/').replace(/\s/g, '');
     const mod = cleaned.length % 4;
@@ -25,6 +31,7 @@ export class SecurityUtils {
     return bytes;
   }
 
+  /** Converts big-endian bytes to bigint. */
   static bytesToBigInt(bytes: Uint8Array): bigint {
     if (bytes.length === 0)
        return 0n;
@@ -32,6 +39,7 @@ export class SecurityUtils {
     return BigInt('0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''));
   }
 
+  /** Converts bigint to fixed-length big-endian bytes (pads/truncates). */
   static bigIntToFixedBytes(bn: bigint, length: number): Uint8Array {
     let hex = bn.toString(16);
 
@@ -46,6 +54,7 @@ export class SecurityUtils {
     return new Uint8Array(hex.match(/.{1,2}/g)?.map(b => parseInt(b, 16)) || []);
   }
 
+  /** Constant-time comparison of two Uint8Arrays. */
   static fixedTimeEquals(a: Uint8Array, b: Uint8Array): boolean {
     if (a.length !== b.length) 
       return false;
@@ -57,6 +66,7 @@ export class SecurityUtils {
     return diff === 0;
   }
   
+   /** Modular exponentiation (base^exp mod mod) using binary exponentiation. */
   static expMod(base: bigint, exp: bigint, mod: bigint): bigint {
     let res = BigInt(1);
 
