@@ -1,6 +1,15 @@
 import { SrpGroup } from "./srp-group.js";
 
+/**
+ * Provides prime modulus (N) and generator (g) for SRP groups (RFC 5054).
+ */
 export class SrpGroupParams {
+
+    /**
+     * Returns the prime modulus N for the given SRP group.
+     * @param group - SRP group identifier.
+     * @returns N as a bigint.
+     */
     static getN(group: SrpGroup): bigint {
         switch (group) {
             case SrpGroup.Rfc5054_1024:
@@ -142,6 +151,11 @@ export class SrpGroupParams {
         }
     }
 
+    /**
+     * Returns the generator g for the given SRP group.
+     * @param group - SRP group identifier.
+     * @returns g as a bigint (2, 5, or 19).
+     */
     static getG(group: SrpGroup): bigint {
         switch (group) {
             case SrpGroup.Rfc5054_1024:
