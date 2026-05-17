@@ -1,0 +1,97 @@
+import { SecurityUtils } from "../utils/security.utils.js";
+import { SrpEncoding } from "../utils/srp-encoding.js";
+import { SrpContext } from "./srp-context.js";
+
+/**
+ * Server-side SRP session state containing ephemeral keys and verifier.
+ */
+export interface SrpSessionState {
+  /** User login identifier. */
+  login: string;
+
+  /** Server private ephemeral key (Base64). */
+  privateKeyB: string;
+
+  /** Password verifier (Base64). */
+  verifier: string;
+
+  /** Server public ephemeral key B (Base64). */
+  publicKeyB: string;
+}
+
+/**
+ * Server-side SRP-6a: challenge generation, client proof verification, server proof creation.
+ */
+export class SrpServerService {
+
+  /**
+   * Generates server challenge B and session state from verifier.
+   * @param login - User login.
+   * @param verifierBytes - Stored verifier v as byte array.
+   * @param ctx - SRP context (hash, N, g, etc.).
+   * @returns Session state with private b, verifier, and public B.
+   */
+  async getSrpChallenge(login: string, verifierBytes: Uint8Array, ctx: SrpContext): Promise<SrpSessionState> {
+    const v = SecurityUtils.bytesToBigInt(verifierBytes);
+
+    const bBytes = crypto.getRandomValues(new Uint8Array(32));
+    const b = SecurityUtils.bytesToBigInt(bBytes);
+
+    const gB = SecurityUtils.expMod(ctx.g, b, ctx.N);
+    const B = (ctx.k * v + gB) % ctx.N;
+
+    return {
+      login,
+      privateKeyB: SecurityUtils.toBase64(bBytes),
+      verifier: SecurityUtils.toBase64(verifierBytes),
+      publicKeyB: SecurityUtils.toBase64(SrpEncoding.toModulusBytes(ctx, B))
+    };
+  }
+
+  /**
+   * Verifies client M1 proof and returns server M2 proof.
+   * @param sessionState - Server session state.
+   * @param a - Client public A (Base64).
+   * @param m1 - Client proof M1 (Base64).
+   * @param ctx - SRP context.
+   * @returns Server proof M2 as Base64 string.
+   * @throws If verification fails or input is invalid.
+   */
+  async verifySrpProof(sessionState: SrpSessionState, a: string, m1: string, ctx: SrpContext): Promise<string> {
+    const A = SecurityUtils.bytesToBigInt(SecurityUtils.fromBase64(a));
+    const M1_client = SecurityUtils.bytesToBigInt(SecurityUtils.fromBase64(m1));
+    const b = SecurityUtils.bytesToBigInt(SecurityUtils.fromBase64(sessionState.privateKeyB));
+    const v = SecurityUtils.bytesToBigInt(SecurityUtils.fromBase64(sessionState.verifier));
+    const B = SecurityUtils.bytesToBigInt(SecurityUtils.fromBase64(sessionState.publicKeyB));
+
+    if (v <= 0n)
+      throw new Error("The verifier is corrupted");
+
+    if (A % ctx.N === 0n)
+      throw new Error("Incorrect value of A");
+
+    if (A <= 0n || A >= ctx.N)
+      throw new Error("Invalid A (out of range)");
+
+    const u = await SrpEncoding.hashModuli(ctx, A, B);
+
+    if (u === 0n)
+      throw new Error("Error in calculating the parameter u");
+
+    const vU = SecurityUtils.expMod(v, u, ctx.N);
+    const S = SecurityUtils.expMod((A * vU) % ctx.N, b, ctx.N);
+
+    const sessionKeyK = await SrpEncoding.computeSessionKey(ctx, S);
+    const M1_server = await SrpEncoding.computeM1(ctx, A, B, sessionKeyK);
+
+    const m1ServerBytes = SrpEncoding.toHashBytes(ctx, M1_server);
+    const m1ClientBytes = SrpEncoding.toHashBytes(ctx, M1_client);
+
+    if (!SecurityUtils.fixedTimeEquals(m1ServerBytes, m1ClientBytes))
+      throw new Error("Invalid password");
+
+    const M2_server = await SrpEncoding.computeM2(ctx, A, M1_client, sessionKeyK);
+
+    return SecurityUtils.toBase64(SrpEncoding.toHashBytes(ctx, M2_server));
+  }
+}

@@ -1,3 +1,89 @@
+<<<<<<< HEAD
+/**
+ * Cryptographic utility functions: Base64, BigInteger conversion, constant-time comparison, modular exponentiation.
+ */
+export class SecurityUtils {
+
+  /** Encodes Uint8Array to standard Base64. */
+  static toBase64(bytes: Uint8Array): string {
+    let binary = '';
+
+    for (let i = 0; i < bytes.length; i++) 
+      binary += String.fromCharCode(bytes[i]);
+
+    return btoa(binary);
+  }
+
+  /** Decodes URL-safe or standard Base64 to Uint8Array. */
+  static fromBase64(base64: string): Uint8Array {
+    let cleaned = base64.replace(/-/g, '+').replace(/_/g, '/').replace(/\s/g, '');
+    const mod = cleaned.length % 4;
+
+    if (mod !== 0) {
+      cleaned += '='.repeat(4 - mod);
+    }
+
+    const binary = atob(cleaned);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++)
+      bytes[i] = binary.charCodeAt(i);
+
+    return bytes;
+  }
+
+  /** Converts big-endian bytes to bigint. */
+  static bytesToBigInt(bytes: Uint8Array): bigint {
+    if (bytes.length === 0)
+       return 0n;
+
+    return BigInt('0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+  }
+
+  /** Converts bigint to fixed-length big-endian bytes (pads/truncates). */
+  static bigIntToFixedBytes(bn: bigint, length: number): Uint8Array {
+    let hex = bn.toString(16);
+
+    if (hex.length % 2 !== 0)
+       hex = '0' + hex;
+
+    if (hex.length > length * 2) 
+      hex = hex.slice(hex.length - length * 2);
+    else 
+      hex = hex.padStart(length * 2, '0');
+
+    return new Uint8Array(hex.match(/.{1,2}/g)?.map(b => parseInt(b, 16)) || []);
+  }
+
+  /** Constant-time comparison of two Uint8Arrays. */
+  static fixedTimeEquals(a: Uint8Array, b: Uint8Array): boolean {
+    if (a.length !== b.length) 
+      return false;
+
+    let diff = 0;
+
+    for (let i = 0; i < a.length; i++) 
+      diff |= a[i] ^ b[i];
+    return diff === 0;
+  }
+  
+   /** Modular exponentiation (base^exp mod mod) using binary exponentiation. */
+  static expMod(base: bigint, exp: bigint, mod: bigint): bigint {
+    let res = BigInt(1);
+
+    base = base % mod;
+
+    while (exp > 0n) {
+      if (exp % 2n === 1n)
+        res = (res * base) % mod;
+
+      base = (base * base) % mod;
+      exp = exp / 2n;
+    }
+    
+    return res;
+  }
+=======
 export class SecurityUtils {
     static readonly MODULUS_SIZE : number = 384;
     static readonly NONCE_SIZE : number = 12;
@@ -92,4 +178,5 @@ export class SecurityUtils {
 
         return this.bytesToBigInt(new Uint8Array(hash));
     }
+>>>>>>> origin/main
 }

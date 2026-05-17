@@ -1,42 +1,114 @@
-import { SecurityUtils } from '../utils';
+import { SecurityConstants } from "../configurations/security-constants.js";
+import { SecurityUtils } from "../utils/security.utils.js";
+import { HashAlgorithm } from "./hash-algorithm.js";
+import { KdfOptions } from "./kdf-options.js";
 
-export class KeyDerivationService{
-  readonly ITERATIONS = 600_000;
-  readonly KEY_SIZE = 32;
+/**
+ * Two-stage key derivation: PBKDF2 (master key) → HKDF (sub-keys).
+ */
+export class KeyDerivationService {
 
-  async deriveKeysFromPassword(login: string, password: string, salt: Uint8Array): Promise<{ kek: Uint8Array; authHash: string }> {
+   /**
+   * Derives KEK and Base64 AuthHash. Identity is normalized (trimmed, lowercase).
+   * @param identity - User identity (email, username).
+   * @param password - User password.
+   * @param salt - Random salt.
+   * @param options - KDF configuration; uses default if omitted.
+   * @returns Object with `kek` (Uint8Array) and `authHash` (Base64 string).
+   */
+  async deriveKeysFromPassword(identity: string, password: string, salt: Uint8Array, options?: KdfOptions): Promise<{ kek: Uint8Array; authHash: string }> {
+    const opts = options ?? KdfOptions.default;
+    opts.validate();
+
     const safeSalt = new Uint8Array(salt);
-    
     const encoder = new TextEncoder();
-    const normalizedLogin = login.trim().toLocaleLowerCase();
+
+    const normalizedLogin = identity.trim().toLowerCase();
     const combinedPassword = `${normalizedLogin}:${password}`;
     const passwordBytes = encoder.encode(combinedPassword);
     const baseKey = await crypto.subtle.importKey('raw', passwordBytes, 'PBKDF2', false, ['deriveBits', 'deriveKey']);
 
     const masterKeyBits = await crypto.subtle.deriveBits({
-        name: 'PBKDF2',
-        salt: safeSalt, 
-        iterations: this.ITERATIONS,
-        hash: 'SHA-256'
-    }, baseKey, this.KEY_SIZE * 8);
+      name: 'PBKDF2',
+      salt: safeSalt,
+      iterations: opts.pbkdf2Iterations,
+      hash: opts.hashAlgorithm
+    }, baseKey, SecurityConstants.KeySizeBytes * 8);
 
     const masterKey = await crypto.subtle.importKey('raw', masterKeyBits, 'HKDF', false, ['deriveBits']);
 
     const kek = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: encoder.encode('AES-GCM-KEK-v1') },
+      { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('AES-GCM-KEK-v1') },
       masterKey,
-      this.KEY_SIZE * 8
+      SecurityConstants.KeySizeBytes * 8
     );
 
     const authBytes = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: encoder.encode('SERVER-AUTH-HASH-v1') },
+      { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('SERVER-AUTH-HASH-v1') },
       masterKey,
-      this.KEY_SIZE * 8
+      SecurityConstants.KeySizeBytes * 8
     );
 
     return {
       kek: new Uint8Array(kek),
       authHash: SecurityUtils.toBase64(new Uint8Array(authBytes)),
     };
+  }
+
+   /**
+   * Derives an SRP-compatible authentication hash (output size = hash output length).
+   * @param identity - User identity.
+   * @param password - User password.
+   * @param salt - Random salt.
+   * @param srpHashAlgorithm - SRP hash algorithm (SHA-256/384/512).
+   * @param options - KDF configuration; uses default if omitted.
+   * @returns Raw hash bytes for use as SRP verifier input (x).
+   */
+  async deriveAuthHashForSrp(identity: string, password: string, salt: Uint8Array, srpHashAlgorithm: HashAlgorithm, options?: KdfOptions): Promise<Uint8Array> {
+    const opts = options ?? KdfOptions.default;
+    opts.validate();
+
+    const srpHashSize = srpHashAlgorithm === 'SHA-256' ? 32 : srpHashAlgorithm === 'SHA-384' ? 48 : 64;
+
+    const normalizedLogin = identity.trim().toLowerCase();
+    const combinedPassword = `${normalizedLogin}:${password}`;
+    const passwordBytes = new TextEncoder().encode(combinedPassword);
+
+    const baseKey = await crypto.subtle.importKey(
+      'raw', 
+      passwordBytes as BufferSource, 
+      'PBKDF2', 
+      false, 
+      ['deriveBits']
+    );
+
+    const masterKeyBits = await crypto.subtle.deriveBits({
+      name: 'PBKDF2',
+      salt: salt as BufferSource,
+      iterations: opts.pbkdf2Iterations,
+      hash: srpHashAlgorithm
+    }, baseKey, SecurityConstants.KeySizeBytes * 8);
+
+    const masterKey = await crypto.subtle.importKey(
+      'raw', 
+      masterKeyBits, 
+      'HKDF', 
+      false, 
+      ['deriveBits']
+    );
+
+    const info = new TextEncoder().encode('SRP-AUTH-HASH-v1');
+    const authBytes = await crypto.subtle.deriveBits(
+      { 
+        name: 'HKDF', 
+        hash: srpHashAlgorithm, 
+        salt: new Uint8Array(0) as BufferSource, 
+        info: info as BufferSource 
+      },
+      masterKey,
+      srpHashSize * 8
+    );
+
+    return new Uint8Array(authBytes);
   }
 }
