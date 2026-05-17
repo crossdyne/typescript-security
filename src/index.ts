@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Configure
 export { SecurityConstants } from './configurations/security-constants.js'
 export { SupportedHashAlgorithms } from './configurations/supported-hash-algorithms.js'
@@ -24,3 +25,8 @@ export { SrpContext } from './srp/srp-context.js'
 //Utils
 export { SecurityUtils } from './utils/security.utils.js'
 export { SrpEncoding } from './utils/srp-encoding.js'
+=======
+export { CryptoService, KeyDerivationService } from './crypto/index.js'
+export { SecurityUtils } from './utils/index.js'
+export { SrpService } from './srp/index.js'
+>>>>>>> origin/main
