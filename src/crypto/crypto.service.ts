@@ -68,7 +68,7 @@ export class CryptoService {
    * @returns Deserialized object, or null if input is empty.
    * @throws If authentication tag mismatch or corrupted data.
    */
-  async decryptData<T>(encryptedBase64: string, key: Uint8Array, options?: AesGcmOptions): Promise<T | null> {
+  async decryptData<T>(encryptedBase64: string, key: Uint8Array, options?: AesGcmOptions, isBytes: boolean = false): Promise<T | null> {
     if (!encryptedBase64)
       return null;
 
@@ -112,6 +112,11 @@ export class CryptoService {
 
       const decoder = new TextDecoder();
       const jsonString = decoder.decode(decryptedBuffer);
+      const parsed = JSON.parse(jsonString);
+
+      if (isBytes && typeof parsed === 'string') {
+        return SecurityUtils.fromBase64(parsed) as unknown as T;
+      }
 
       return JSON.parse(jsonString) as T;
     } catch (e) {
