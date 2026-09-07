@@ -10,61 +10,61 @@ import { KdfOptions } from "./kdf-options.js";
  */
 export class KeyDerivationService {
 
-  /**
-   * Derives KEK and Base64 AuthHash. Identity is used as-is in the 
-   * combined salt string — caller must normalize (trim, lowercase, etc.) before calling.
-   * @param identity - User identity (email, username). Must be pre-normalized by caller.
-   * @param password - User password.
-   * @param salt - Random salt (minimum 16 bytes).
-   * @param version - Crypto version for profile selection.
-   * @returns Object with `kek` (Uint8Array) and `authHash` (Base64 string).
-   */
-  async deriveKeysFromPassword(identity: string, password: string, salt: Uint8Array, version: CryptoVersion): Promise<{ kek: Uint8Array; authHash: string }> {
-    if (!identity || identity.length === 0)
-      throw new Error('Identity cannot be null or empty.');
+    /**
+     * Derives KEK and Base64 AuthHash. Identity is used as-is in the 
+     * combined salt string — caller must normalize (trim, lowercase, etc.) before calling.
+     * @param identity - User identity (email, username). Must be pre-normalized by caller.
+     * @param password - User password.
+     * @param salt - Random salt (minimum 16 bytes).
+     * @param version - Crypto version for profile selection.
+     * @returns Object with `kek` (Uint8Array) and `authHash` (Base64 string).
+     */
+    async deriveKeysFromPassword(identity: string, password: string, salt: Uint8Array, version: CryptoVersion): Promise<{ kek: Uint8Array; authHash: string }> {
+        if (!identity || identity.length === 0)
+            throw new Error('Identity cannot be null or empty.');
 
-    if (!password || password.trim().length === 0)
-      throw new Error('Password cannot be null or empty.');
+        if (!password || password.trim().length === 0)
+            throw new Error('Password cannot be null or empty.');
 
-    if (!salt || salt.length < 16)
-      throw new Error('Salt must be at least 16 bytes.');
+        if (!salt || salt.length < 16)
+            throw new Error('Salt must be at least 16 bytes.');
 
-    const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
-    const opts: KdfOptions = profile.kdfOptions;
-    opts.validate();
+        const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
+        const opts: KdfOptions = profile.kdfOptions;
+        opts.validate();
 
-    const safeSalt = new Uint8Array(salt);
-    const encoder = new TextEncoder();
+        const safeSalt = new Uint8Array(salt);
+        const encoder = new TextEncoder();
 
-    const combinedPassword = `${identity}:${password}`;
-    const passwordBytes = encoder.encode(combinedPassword);
-    const baseKey = await crypto.subtle.importKey('raw', passwordBytes, 'PBKDF2', false, ['deriveBits', 'deriveKey']);
+        const combinedPassword = `${identity}:${password}`;
+        const passwordBytes = encoder.encode(combinedPassword);
+        const baseKey = await crypto.subtle.importKey('raw', passwordBytes, 'PBKDF2', false, ['deriveBits', 'deriveKey']);
 
-    const hashSize = HashSizes[opts.hashAlgorithm] ?? 32;
-    const masterKeyBits = await crypto.subtle.deriveBits({
-      name: 'PBKDF2',
-      salt: safeSalt,
-      iterations: opts.pbkdf2Iterations,
-      hash: opts.hashAlgorithm
-    }, baseKey, hashSize * 8);
+        const hashSize = HashSizes[opts.hashAlgorithm] ?? 32;
+        const masterKeyBits = await crypto.subtle.deriveBits({
+            name: 'PBKDF2',
+            salt: safeSalt,
+            iterations: opts.pbkdf2Iterations,
+            hash: opts.hashAlgorithm
+        }, baseKey, hashSize * 8);
 
-    const masterKey = await crypto.subtle.importKey('raw', masterKeyBits, 'HKDF', false, ['deriveBits']);
+        const masterKey = await crypto.subtle.importKey('raw', masterKeyBits, 'HKDF', false, ['deriveBits']);
 
-    const kek = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('AES-GCM-KEK-v1') },
-      masterKey,
-      SecurityConstants.KeySizeBytes * 8
-    );
+        const kek = await crypto.subtle.deriveBits(
+            { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('AES-GCM-KEK-v1') },
+            masterKey,
+            SecurityConstants.KeySizeBytes * 8
+        );
 
-    const authBytes = await crypto.subtle.deriveBits(
-      { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('SERVER-AUTH-HASH-v1') },
-      masterKey,
-      SecurityConstants.KeySizeBytes * 8
-    );
+        const authBytes = await crypto.subtle.deriveBits(
+            { name: 'HKDF', hash: opts.hashAlgorithm, salt: new Uint8Array(0), info: encoder.encode('SERVER-AUTH-HASH-v1') },
+            masterKey,
+            SecurityConstants.KeySizeBytes * 8
+        );
 
-    return {
-      kek: new Uint8Array(kek),
-      authHash: SecurityUtils.toBase64(new Uint8Array(authBytes)),
-    };
-  }
+        return {
+            kek: new Uint8Array(kek),
+            authHash: SecurityUtils.toBase64(new Uint8Array(authBytes)),
+        };
+    }
 }
