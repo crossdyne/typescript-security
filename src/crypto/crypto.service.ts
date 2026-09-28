@@ -13,10 +13,10 @@ export class CryptoService {
     /**
     * Encrypts a serializable object to a Base64 string.
     * @param dataModel - Object or Uint8Array to encrypt.
-    * @param key - AES-256 key (32 bytes).
+    * @param key - A non-extractable CryptoKey obtained via {@link CryptoService.importKey}.
     * @returns Base64-encoded ciphertext with prepended nonce.
     */
-    async encryptData<T>(dataModel: T, key: Uint8Array, version: CryptoVersion = CryptoVersion.V1): Promise<string> {
+    async encryptData<T>(dataModel: T, key: CryptoKey, version: CryptoVersion = CryptoVersion.V1): Promise<string> {
         const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
         const opts: AesGcmOptions = profile.aesGcmOptions;
         opts.validate();
@@ -33,21 +33,13 @@ export class CryptoService {
         const plainBytes = encoder.encode(jsonString);
         const nonce = crypto.getRandomValues(new Uint8Array(opts.nonceSize));
 
-        const cryptoKey = await crypto.subtle.importKey(
-            'raw',
-            key as BufferSource,
-            'AES-GCM',
-            false,
-            ['encrypt']
-        );
-
         const encryptedContent = await crypto.subtle.encrypt(
             {
                 name: 'AES-GCM',
                 iv: nonce,
                 tagLength: opts.tagSize * 8,
             },
-            cryptoKey,
+            key,
             plainBytes
         );
 
@@ -61,11 +53,11 @@ export class CryptoService {
     /**
     * Decrypts a Base64-encoded ciphertext back to the original object.
     * @param encryptedBase64 - The encrypted data.
-    * @param key - AES-256 key (32 bytes).
+    * @param key - A non-extractable CryptoKey obtained via {@link CryptoService.importKey}.
     * @returns Deserialized object, or null if input is empty.
     * @throws If authentication tag mismatch or corrupted data.
     */
-    async decryptData<T>(encryptedBase64: string, key: Uint8Array, isBytes: boolean = false): Promise<T | null> {
+    async decryptData<T>(encryptedBase64: string, key: CryptoKey, isBytes: boolean = false): Promise<T | null> {
         if (!encryptedBase64)
             return null;
 
@@ -84,14 +76,6 @@ export class CryptoService {
         const nonce = payload.slice(0, opts.nonceSize);
         const ciphertextWithTag = payload.slice(opts.nonceSize);
 
-        const cryptoKey = await crypto.subtle.importKey(
-            'raw',
-            key as BufferSource,
-            'AES-GCM',
-            false,
-            ['decrypt']
-        );
-
         try {
 
             const decryptedBuffer = await crypto.subtle.decrypt(
@@ -100,7 +84,7 @@ export class CryptoService {
                     iv: nonce,
                     tagLength: opts.tagSize * 8,
                 },
-                cryptoKey,
+                key,
                 ciphertextWithTag
             );
 
@@ -125,4 +109,28 @@ export class CryptoService {
     * @returns Uint8Array of random bytes.
     */
     generateRandomBytes = (length = 32): Uint8Array => crypto.getRandomValues(new Uint8Array(length));
+
+    /**
+     * Imports raw key bytes into a non-extractable CryptoKey based on the crypto profile version.
+     *
+     * The resulting key cannot be exported back to raw bytes (extractable: false),
+     * ensuring that sensitive key material does not persist in JavaScript-accessible memory.
+     * Callers should securely wipe the original raw key buffer immediately after import.
+     *
+     * @param rawKey - Raw key bytes (e.g. a Data Encryption Key).
+     * @param version - Crypto profile version that determines the algorithm and parameters.
+     * @param usages - Allowed key operations (e.g. ['encrypt', 'decrypt']).
+     * @returns A non-extractable CryptoKey bound to the algorithm defined by the profile.
+     */
+    async importKey(rawKey: Uint8Array, version: CryptoVersion, usages: KeyUsage[]): Promise<CryptoKey> {
+        const profile = CryptoProfileRegistry.getProfile(version);
+    
+        return await crypto.subtle.importKey(
+            'raw',
+            rawKey as BufferSource,
+            profile.algorithmName, 
+            false,
+            usages
+        );
+    }
 }

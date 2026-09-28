@@ -1,6 +1,7 @@
 // Configure
 export { SecurityConstants } from './configurations/security-constants.js'
 export { SupportedHashAlgorithms } from './configurations/supported-hash-algorithms.js'
+export { SupportedAlgorithm } from './configurations/supported-algorithm.js'
 
 // Crypto
 export { CryptoService } from './crypto/crypto.service.js'
