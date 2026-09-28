@@ -197,14 +197,14 @@ describe('SecurityUtils', () => {
         it('should yield to event loop during long computation', async () => {
             const start = Date.now();
             const promise = SecurityUtils.expModAsync(
-                3n, 
-                (1n << 100n) - 1n, 
-                (1n << 128n) - 1n, 
+                3n,
+                (1n << 100n) - 1n,
+                (1n << 128n) - 1n,
                 1
             );
-            
+
             await new Promise(resolve => setTimeout(resolve, 0));
-            
+
             const result = await promise;
             expect(result).toBeDefined();
             expect(Date.now() - start).toBeGreaterThanOrEqual(0);

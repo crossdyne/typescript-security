@@ -10,119 +10,119 @@ import { CryptoVersion } from './crypto-version.js';
  */
 export class CryptoService {
 
-   /**
-   * Encrypts a serializable object to a Base64 string.
-   * @param dataModel - Object or Uint8Array to encrypt.
-   * @param key - AES-256 key (32 bytes).
-   * @returns Base64-encoded ciphertext with prepended nonce.
-   */
-  async encryptData<T>(dataModel: T, key: Uint8Array, version: CryptoVersion = CryptoVersion.V1): Promise<string> {
-    const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
-    const opts: AesGcmOptions = profile.aesGcmOptions;
-    opts.validate();
+    /**
+    * Encrypts a serializable object to a Base64 string.
+    * @param dataModel - Object or Uint8Array to encrypt.
+    * @param key - AES-256 key (32 bytes).
+    * @returns Base64-encoded ciphertext with prepended nonce.
+    */
+    async encryptData<T>(dataModel: T, key: Uint8Array, version: CryptoVersion = CryptoVersion.V1): Promise<string> {
+        const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
+        const opts: AesGcmOptions = profile.aesGcmOptions;
+        opts.validate();
 
-    const encoder = new TextEncoder();
-    let jsonString: string;
-    
-    if (ArrayBuffer.isView(dataModel) && dataModel.constructor === Uint8Array) {
-      jsonString = `"${SecurityUtils.toBase64(dataModel)}"`;
-    } else {
-      jsonString = JSON.stringify(dataModel);
+        const encoder = new TextEncoder();
+        let jsonString: string;
+
+        if (ArrayBuffer.isView(dataModel) && dataModel.constructor === Uint8Array) {
+            jsonString = `"${SecurityUtils.toBase64(dataModel)}"`;
+        } else {
+            jsonString = JSON.stringify(dataModel);
+        }
+
+        const plainBytes = encoder.encode(jsonString);
+        const nonce = crypto.getRandomValues(new Uint8Array(opts.nonceSize));
+
+        const cryptoKey = await crypto.subtle.importKey(
+            'raw',
+            key as BufferSource,
+            'AES-GCM',
+            false,
+            ['encrypt']
+        );
+
+        const encryptedContent = await crypto.subtle.encrypt(
+            {
+                name: 'AES-GCM',
+                iv: nonce,
+                tagLength: opts.tagSize * 8,
+            },
+            cryptoKey,
+            plainBytes
+        );
+
+        const result = new Uint8Array(1 + opts.nonceSize + encryptedContent.byteLength);
+        result[0] = version;
+        result.set(nonce, 1);
+        result.set(new Uint8Array(encryptedContent), 1 + opts.nonceSize);
+        return SecurityUtils.toBase64(result);
     }
 
-    const plainBytes = encoder.encode(jsonString);
-    const nonce = crypto.getRandomValues(new Uint8Array(opts.nonceSize));
+    /**
+    * Decrypts a Base64-encoded ciphertext back to the original object.
+    * @param encryptedBase64 - The encrypted data.
+    * @param key - AES-256 key (32 bytes).
+    * @returns Deserialized object, or null if input is empty.
+    * @throws If authentication tag mismatch or corrupted data.
+    */
+    async decryptData<T>(encryptedBase64: string, key: Uint8Array, isBytes: boolean = false): Promise<T | null> {
+        if (!encryptedBase64)
+            return null;
 
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      key as BufferSource, 
-      'AES-GCM',
-      false,
-      ['encrypt']
-    );
+        const encryptedBytes: Uint8Array<ArrayBufferLike> = SecurityUtils.fromBase64(encryptedBase64);
 
-    const encryptedContent = await crypto.subtle.encrypt(
-      {
-        name: 'AES-GCM',
-        iv: nonce,
-        tagLength: opts.tagSize * 8,
-      },
-      cryptoKey,
-      plainBytes
-    );
+        const version: CryptoVersion = encryptedBytes[0] as CryptoVersion;
+        const payload: Uint8Array<ArrayBuffer> = encryptedBytes.slice(1);
 
-    const result = new Uint8Array(1 + opts.nonceSize + encryptedContent.byteLength);
-    result[0] = version;
-    result.set(nonce, 1);
-    result.set(new Uint8Array(encryptedContent), 1 + opts.nonceSize);
-    return SecurityUtils.toBase64(result);
-  }
+        const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
+        const opts: AesGcmOptions = profile.aesGcmOptions;
+        opts.validate();
 
-   /**
-   * Decrypts a Base64-encoded ciphertext back to the original object.
-   * @param encryptedBase64 - The encrypted data.
-   * @param key - AES-256 key (32 bytes).
-   * @returns Deserialized object, or null if input is empty.
-   * @throws If authentication tag mismatch or corrupted data.
-   */
-  async decryptData<T>(encryptedBase64: string, key: Uint8Array, isBytes: boolean = false): Promise<T | null> {
-    if (!encryptedBase64)
-      return null;
+        if (payload.length < opts.nonceSize + opts.tagSize)
+            throw new Error(`Invalid format: minimum expected ${opts.nonceSize + opts.tagSize} byte.`);
 
-    const encryptedBytes: Uint8Array<ArrayBufferLike> = SecurityUtils.fromBase64(encryptedBase64);
+        const nonce = payload.slice(0, opts.nonceSize);
+        const ciphertextWithTag = payload.slice(opts.nonceSize);
 
-    const version: CryptoVersion = encryptedBytes[0] as CryptoVersion;
-    const payload: Uint8Array<ArrayBuffer> = encryptedBytes.slice(1);
+        const cryptoKey = await crypto.subtle.importKey(
+            'raw',
+            key as BufferSource,
+            'AES-GCM',
+            false,
+            ['decrypt']
+        );
 
-    const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
-    const opts: AesGcmOptions = profile.aesGcmOptions;
-    opts.validate();
+        try {
 
-    if (payload.length < opts.nonceSize + opts.tagSize)
-      throw new Error(`Invalid format: minimum expected ${opts.nonceSize + opts.tagSize} byte.`);
+            const decryptedBuffer = await crypto.subtle.decrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: nonce,
+                    tagLength: opts.tagSize * 8,
+                },
+                cryptoKey,
+                ciphertextWithTag
+            );
 
-    const nonce = payload.slice(0, opts.nonceSize);
-    const ciphertextWithTag = payload.slice(opts.nonceSize);
+            const decoder = new TextDecoder();
+            const jsonString = decoder.decode(decryptedBuffer);
+            const parsed = JSON.parse(jsonString);
 
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      key as BufferSource,
-      'AES-GCM',
-      false,
-      ['decrypt']
-    );
+            if (isBytes && typeof parsed === 'string') {
+                return SecurityUtils.fromBase64(parsed) as unknown as T;
+            }
 
-    try {
-
-      const decryptedBuffer = await crypto.subtle.decrypt(
-        {
-          name: 'AES-GCM',
-          iv: nonce,
-          tagLength: opts.tagSize * 8,
-        },
-        cryptoKey,
-        ciphertextWithTag
-      );
-
-      const decoder = new TextDecoder();
-      const jsonString = decoder.decode(decryptedBuffer);
-      const parsed = JSON.parse(jsonString);
-
-      if (isBytes && typeof parsed === 'string') {
-        return SecurityUtils.fromBase64(parsed) as unknown as T;
-      }
-
-      return parsed as T;
-    } catch (e) {
-      console.error('Decryption error:', e);
-      throw new Error("Decryption failed: authentication tag mismatch or corrupted data.");
+            return parsed as T;
+        } catch (e) {
+            console.error('Decryption error:', e);
+            throw new Error("Decryption failed: authentication tag mismatch or corrupted data.");
+        }
     }
-  }
 
-   /**
-   * Generates cryptographically secure random bytes.
-   * @param length - Number of bytes (default 32).
-   * @returns Uint8Array of random bytes.
-   */
-  generateRandomBytes = (length = 32): Uint8Array => crypto.getRandomValues(new Uint8Array(length));
+    /**
+    * Generates cryptographically secure random bytes.
+    * @param length - Number of bytes (default 32).
+    * @returns Uint8Array of random bytes.
+    */
+    generateRandomBytes = (length = 32): Uint8Array => crypto.getRandomValues(new Uint8Array(length));
 }

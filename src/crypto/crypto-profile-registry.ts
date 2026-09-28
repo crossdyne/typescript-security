@@ -21,7 +21,7 @@ export class CryptoProfileRegistry {
         }
     }
 
-     /** Latest supported profile (currently V1). */
+    /** Latest supported profile (currently V1). */
     static get latest(): CryptoProfile {
         return this.getProfile(CryptoVersion.V1);
     }
