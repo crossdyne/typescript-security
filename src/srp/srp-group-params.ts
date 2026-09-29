@@ -14,14 +14,14 @@ export class SrpGroupParams {
         switch (group) {
             case SrpGroup.Rfc5054_1024:
                 return BigInt("0x" +
-                    "EEAF0AB9" + "ADB38DD6" + "9C33F80A" + "FA8FC5E8" + "60726187" + "75FF3C0B" + "9EA2314C"+ 
-                    "9C256576" + "D674DF74" + "96EA81D3" + "383B4813" + "D692C6E0" + "E0D5D8E2" + "50B98BE4" + 
-                    "8E495C1D" + "6089DAD1" + "5DC7D7B4" + "6154D6B6" + "CE8EF4AD" + "69B15D49" + "82559B29" + 
-                    "7BCF1885" + "C529F566" + "660E57EC" + "68EDBC3C" + "05726CC0" + "2FD4CBF4" + "976EAA9A" + 
+                    "EEAF0AB9" + "ADB38DD6" + "9C33F80A" + "FA8FC5E8" + "60726187" + "75FF3C0B" + "9EA2314C" +
+                    "9C256576" + "D674DF74" + "96EA81D3" + "383B4813" + "D692C6E0" + "E0D5D8E2" + "50B98BE4" +
+                    "8E495C1D" + "6089DAD1" + "5DC7D7B4" + "6154D6B6" + "CE8EF4AD" + "69B15D49" + "82559B29" +
+                    "7BCF1885" + "C529F566" + "660E57EC" + "68EDBC3C" + "05726CC0" + "2FD4CBF4" + "976EAA9A" +
                     "FD5138FE" + "8376435B" + "9FC61D2F" + "C0EB06E3");
-            case SrpGroup.Rfc5054_1536: 
+            case SrpGroup.Rfc5054_1536:
                 return BigInt("0x" +
-                    "9DEF3CAF" + "B939277A" + "B1F12A86" + "17A47BBB" + "DBA51DF4" + "99AC4C80" + "BEEEA961" + 
+                    "9DEF3CAF" + "B939277A" + "B1F12A86" + "17A47BBB" + "DBA51DF4" + "99AC4C80" + "BEEEA961" +
                     "4B19CC4D" + "5F4F5F55" + "6E27CBDE" + "51C6A94B" + "E4607A29" + "1558903B" + "A0D0F843" +
                     "80B655BB" + "9A22E8DC" + "DF028A7C" + "EC67F0D0" + "8134B1C8" + "B9798914" + "9B609E0B" +
                     "E3BAB63D" + "47548381" + "DBC5B1FC" + "764E3F4B" + "53DD9DA1" + "158BFD3E" + "2B9C8CF5" +
@@ -160,7 +160,7 @@ export class SrpGroupParams {
         switch (group) {
             case SrpGroup.Rfc5054_1024:
                 return BigInt(2);
-            case SrpGroup.Rfc5054_1536: 
+            case SrpGroup.Rfc5054_1536:
                 return BigInt(2)
             case SrpGroup.Rfc5054_2048:
                 return BigInt(2);

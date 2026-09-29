@@ -11,72 +11,72 @@ import { SrpGroup } from "../srp/srp-group.js";
  */
 export class SrpKeyDerivationService {
 
-  /**
-   * Derives an SRP-compatible authentication hash (output size = hash output length).
-   * Identity is used as-is in the combined string — caller must normalize 
-   * (trim, lowercase, etc.) before calling.
-   * @param identity - User identity (email, username). Must be pre-normalized by caller.
-   * @param password - User password.
-   * @param salt - Random salt (minimum 16 bytes).
-   * @param srpGroup - SRP group (determines hash algorithm and modulus).
-   * @param version - Crypto version for KDF profile selection.
-   * @returns Raw hash bytes for use as SRP verifier input (x).
-   */
-  async deriveAuthHashForSrp(identity: string, password: string, salt: Uint8Array, srpGroup: SrpGroup, version: CryptoVersion): Promise<Uint8Array> {
-    if (!identity || identity.trim().length === 0)
-      throw new Error('Identity cannot be null or empty.');
-    
-    if (!password || password.trim().length === 0)
-      throw new Error('Password cannot be null or empty.');
-        
-    if (!salt || salt.length < 16)
-      throw new Error('Salt must be at least 16 bytes.');
+    /**
+     * Derives an SRP-compatible authentication hash (output size = hash output length).
+     * Identity is used as-is in the combined string — caller must normalize 
+     * (trim, lowercase, etc.) before calling.
+     * @param identity - User identity (email, username). Must be pre-normalized by caller.
+     * @param password - User password.
+     * @param salt - Random salt (minimum 16 bytes).
+     * @param srpGroup - SRP group (determines hash algorithm and modulus).
+     * @param version - Crypto version for KDF profile selection.
+     * @returns Raw hash bytes for use as SRP verifier input (x).
+     */
+    async deriveAuthHashForSrp(identity: string, password: string, salt: Uint8Array, srpGroup: SrpGroup, version: CryptoVersion): Promise<Uint8Array> {
+        if (!identity || identity.trim().length === 0)
+            throw new Error('Identity cannot be null or empty.');
 
-    const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
-    const opts: KdfOptions = profile.kdfOptions;
-    opts.validate();
+        if (!password || password.trim().length === 0)
+            throw new Error('Password cannot be null or empty.');
 
-    const ctx = await SrpContextFactory.create(srpGroup);
-    const srpHashAlgorithm = ctx.hashAlgorithmName;
-    const srpHashSize = HashSizes[srpHashAlgorithm];
-    const combinedPassword = `${identity}:${password}`;
-    const passwordBytes = new TextEncoder().encode(combinedPassword);
+        if (!salt || salt.length < 16)
+            throw new Error('Salt must be at least 16 bytes.');
 
-    const baseKey = await crypto.subtle.importKey(
-      'raw', 
-      passwordBytes as BufferSource, 
-      'PBKDF2', 
-      false, 
-      ['deriveBits']
-    );
+        const profile: CryptoProfile = CryptoProfileRegistry.getProfile(version);
+        const opts: KdfOptions = profile.kdfOptions;
+        opts.validate();
 
-    const masterKeyBits = await crypto.subtle.deriveBits({
-      name: 'PBKDF2',
-      salt: salt as BufferSource,
-      iterations: opts.pbkdf2Iterations,
-      hash: srpHashAlgorithm
-    }, baseKey, srpHashSize * 8);
+        const ctx = await SrpContextFactory.create(srpGroup);
+        const srpHashAlgorithm = ctx.hashAlgorithmName;
+        const srpHashSize = HashSizes[srpHashAlgorithm];
+        const combinedPassword = `${identity}:${password}`;
+        const passwordBytes = new TextEncoder().encode(combinedPassword);
 
-    const masterKey = await crypto.subtle.importKey(
-      'raw', 
-      masterKeyBits, 
-      'HKDF', 
-      false, 
-      ['deriveBits']
-    );
+        const baseKey = await crypto.subtle.importKey(
+            'raw',
+            passwordBytes as BufferSource,
+            'PBKDF2',
+            false,
+            ['deriveBits']
+        );
 
-    const info = new TextEncoder().encode('SRP-AUTH-HASH-v1');
-    const authBytes = await crypto.subtle.deriveBits(
-      { 
-        name: 'HKDF', 
-        hash: srpHashAlgorithm, 
-        salt: new Uint8Array(0), 
-        info: info as BufferSource 
-      },
-      masterKey,
-      srpHashSize * 8
-    );
+        const masterKeyBits = await crypto.subtle.deriveBits({
+            name: 'PBKDF2',
+            salt: salt as BufferSource,
+            iterations: opts.pbkdf2Iterations,
+            hash: srpHashAlgorithm
+        }, baseKey, srpHashSize * 8);
 
-    return new Uint8Array(authBytes);
-  }
+        const masterKey = await crypto.subtle.importKey(
+            'raw',
+            masterKeyBits,
+            'HKDF',
+            false,
+            ['deriveBits']
+        );
+
+        const info = new TextEncoder().encode('SRP-AUTH-HASH-v1');
+        const authBytes = await crypto.subtle.deriveBits(
+            {
+                name: 'HKDF',
+                hash: srpHashAlgorithm,
+                salt: new Uint8Array(0),
+                info: info as BufferSource
+            },
+            masterKey,
+            srpHashSize * 8
+        );
+
+        return new Uint8Array(authBytes);
+    }
 }
