@@ -7,10 +7,11 @@ import type { TestUser, UserMetadata, NestedDto } from "./test-dtos.js";
 
 describe("CryptoService", () => {
     const crypto = new CryptoService();
-    let validKey: Uint8Array;
+    let validKey: CryptoKey;
 
-    beforeAll(() => {
-        validKey = crypto.generateRandomBytes(SecurityConstants.KeySizeBytes);
+    beforeAll(async () => {
+        const rawKey: Uint8Array<ArrayBufferLike> = crypto.generateRandomBytes(SecurityConstants.KeySizeBytes);
+        validKey = await crypto.importKey(rawKey, CryptoVersion.V1, ['encrypt', 'decrypt']);
     });
 
     describe("Encrypt/Decrypt", () => {
@@ -58,30 +59,32 @@ describe("CryptoService", () => {
     });
 
     describe("Key Validation", () => {
-        it("should throw on key with invalid length", async () => {
-            const invalidKey = new Uint8Array(64); // 512-bit, invalid for AES
-            await expect(crypto.encryptData("test", invalidKey)).rejects.toThrow();
-        });
+        it("should throw on key with invalid length during import", async () => {
+            await expect(
+                crypto.importKey(new Uint8Array(64), CryptoVersion.V1, ['encrypt', 'decrypt'])
+            ).rejects.toThrow(); 
+        })
 
         it("should throw on null key during encrypt", async () => {
             await expect(
-                crypto.encryptData("test", null as unknown as Uint8Array),
+                crypto.encryptData("test", null as unknown as CryptoKey),
             ).rejects.toThrow();
         });
 
         it("should throw on null key during decrypt", async () => {
             const encrypted = await crypto.encryptData("test", validKey);
             await expect(
-                crypto.decryptData<string>(encrypted, null as unknown as Uint8Array),
+                crypto.decryptData<string>(encrypted, null as unknown as CryptoKey),
             ).rejects.toThrow();
         });
 
         it("should throw on wrong key during decrypt", async () => {
             const original = "Secret message";
             const encrypted = await crypto.encryptData(original, validKey);
-            const wrongKey = crypto.generateRandomBytes(
+            const wrongRawKey = crypto.generateRandomBytes(
                 SecurityConstants.KeySizeBytes,
             );
+            const wrongKey = await crypto.importKey(wrongRawKey, CryptoVersion.V1, ['encrypt', 'decrypt']);
             await expect(
                 crypto.decryptData<string>(encrypted, wrongKey),
             ).rejects.toThrow(/Decryption failed|authentication tag/);

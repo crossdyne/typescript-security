@@ -23,7 +23,6 @@ npm install @crossdyne/security
 - **PBKDF2 + HKDF** — secure key derivation from passwords
 - **SRP-6a** — password-authenticated key exchange without sending the password to the server
 - **Zero-memory** — sensitive buffers are explicitly overwritten after use
-- **No custom crypto primitives** — relies entirely on the browser / Node.js Web Crypto API
 - **Cross-platform** — compatible with the [.NET implementation](https://github.com/crossdyne/dotnet-security). Encrypted payloads and SRP messages are interchangeable between TS and .NET.
 
 ### Requirements
@@ -50,7 +49,7 @@ crossdyne-security/
 │   └── srp-encoding.ts                # BigInt ↔ bytes helpers
 └── utils/
     ├── security-utils.ts              # Base64, BigInt, fixed-time compare
-    └── srp-encoding.ts               # Hash moduli, session key, M1 / M2
+    └── srp-encoding.ts                # Hash moduli, session key, M1 / M2
 ```
 
 ### Quick Start
@@ -62,15 +61,21 @@ import { CryptoService } from './crypto/crypto-service.js';
 import { CryptoVersion } from './crypto/crypto-version.js';
 
 const crypto = new CryptoService();
-const key = crypto.generateRandomBytes(32); // AES-256
+const rawKey = crypto.generateRandomBytes(32); // AES-256 raw key
+
+// Import the raw key into a non-extractable CryptoKey
+const cryptoKey = await crypto.importKey(rawKey, CryptoVersion.V1, ['encrypt', 'decrypt']);
 
 const encrypted = await crypto.encryptData(
   { message: "Hello, World!" },
-  key,
+  cryptoKey,
   CryptoVersion.V1
 );
 
-const decrypted = await crypto.decryptData<MyData>(encrypted, key);
+const decrypted = await crypto.decryptData<MyData>(encrypted, cryptoKey);
+
+// Best practice: securely wipe the raw key from memory after import
+rawKey.fill(0);
 ```
 
 Encrypted payload format (Base64):
@@ -83,6 +88,7 @@ Encrypted payload format (Base64):
 
 ```typescript
 import { KeyDerivationService } from './crypto/key-derivation-service.js';
+import { CryptoService } from './crypto/crypto-service.js';
 import { CryptoVersion } from './crypto/crypto-version.js';
 
 const kdf = new KeyDerivationService();
@@ -174,11 +180,10 @@ const isValid = await client.verifyServerM2(
 
 ### Security Notes
 
-- All sensitive buffers are explicitly overwritten after use
-- Salt must be **at least 16 bytes**
-- AES-256 key must be **exactly 32 bytes**
-- SRP groups are protected against small-subgroup attacks (checks `A % N != 0`, `B != 0`)
-- Relies entirely on the native Web Crypto API — no custom crypto primitives
+- All sensitive buffers (like raw keys) should be explicitly overwritten (`fill(0)`) after being imported into a `CryptoKey`.
+- Salt must be **at least 16 bytes**.
+- AES-256 key must be **exactly 32 bytes**.
+- SRP groups are protected against small-subgroup attacks (checks `A % N != 0`, `B != 0`).
 
 ### License
 
@@ -203,7 +208,6 @@ npm install @crossdyne/security
 - **PBKDF2 + HKDF** — надёжный вывод ключей из пароля
 - **SRP-6a** — протокол аутентификации без передачи пароля на сервер
 - **Zero-memory** — чувствительные буферы явно перезаписываются после использования
-- **Никаких самописных криптопримитивов** — только нативный Web Crypto API браузера / Node.js
 - **Кроссплатформенность** — совместима с [.NET-реализацией](https://github.com/crossdyne/dotnet-security). Зашифрованные данные и SRP-сообщения взаимозаменяемы между TS и .NET.
 
 ### Требования
@@ -230,7 +234,7 @@ crossdyne-security/
 │   └── srp-encoding.ts                # BigInt ↔ bytes хелперы
 └── utils/
     ├── security-utils.ts              # Base64, BigInt, сравнение в постоянное время
-    └── srp-encoding.ts               # Хеш модулей, сессионный ключ, M1 / M2
+    └── srp-encoding.ts                # Хеш модулей, сессионный ключ, M1 / M2
 ```
 
 ### Быстрый старт
@@ -242,15 +246,21 @@ import { CryptoService } from './crypto/crypto-service.js';
 import { CryptoVersion } from './crypto/crypto-version.js';
 
 const crypto = new CryptoService();
-const key = crypto.generateRandomBytes(32); // AES-256
+const rawKey = crypto.generateRandomBytes(32); // Сырой ключ AES-256
+
+// Импортируем сырой ключ в неизвлекаемый CryptoKey
+const cryptoKey = await crypto.importKey(rawKey, CryptoVersion.V1, ['encrypt', 'decrypt']);
 
 const encrypted = await crypto.encryptData(
   { message: "Hello, World!" },
-  key,
+  cryptoKey,
   CryptoVersion.V1
 );
 
-const decrypted = await crypto.decryptData<MyData>(encrypted, key);
+const decrypted = await crypto.decryptData<MyData>(encrypted, cryptoKey);
+
+// Рекомендуемая практика: безопасно очистить сырой ключ из памяти сразу после импорта
+rawKey.fill(0);
 ```
 
 Формат зашифрованных данных (Base64):
@@ -354,11 +364,10 @@ const isValid = await client.verifyServerM2(
 
 ### Безопасность
 
-- Все чувствительные буферы явно перезаписываются после использования
-- Соль должна быть **минимум 16 байт**
-- Ключ AES-256 — **строго 32 байта**
-- SRP-группы защищены от атак на малые подгруппы (проверки `A % N != 0`, `B != 0`)
-- Полностью опирается на нативный Web Crypto API — никаких самописных криптопримитивов
+- Все чувствительные буферы (сырые ключи и тд) должны быть явно перезаписаны (`fill(0)`) после их импорта в `CryptoKey`.
+- Соль должна быть **минимум 16 байт**.
+- Ключ AES-256 — **строго 32 байта**.
+- SRP-группы защищены от атак на малые подгруппы (проверки `A % N != 0`, `B != 0`).
 
 ### Лицензия
 

@@ -1,3 +1,4 @@
+import { SupportedAlgorithm } from "../configurations/supported-algorithm.js";
 import { AesGcmOptions } from "./aes-gcm-options.js";
 import { CryptoVersion } from "./crypto-version.js";
 import { KdfOptions } from "./kdf-options.js";
@@ -11,6 +12,8 @@ export class CryptoProfile {
     /** Protocol version, influencing KDF defaults, cipher modes, and serialization. */
     readonly version: CryptoVersion;
 
+    readonly algorithmName: SupportedAlgorithm; 
+
     /** Key derivation parameters (iterations, hash algorithm). */
     readonly kdfOptions: KdfOptions;
 
@@ -23,10 +26,12 @@ export class CryptoProfile {
      */
     constructor(params: {
         version: CryptoVersion;
+        algorithmName: SupportedAlgorithm;
         kdfOptions: KdfOptions;
         aesGcmOptions: AesGcmOptions;
     }) {
         this.version = params.version;
+        this.algorithmName = params.algorithmName;
         this.kdfOptions = params.kdfOptions;
         this.aesGcmOptions = params.aesGcmOptions;
     }
